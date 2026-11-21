@@ -1,4 +1,5 @@
 name "dssg"
 dependency "dyaml" version="~>0.10.0"
 targetPath "build"
+dflags "-preview=tuples"
 libs "cmark-gfm" "yaml"

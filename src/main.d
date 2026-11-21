@@ -1,32 +1,11 @@
-import std;
-import dyaml;
+module dssg.main;
 
-extern (C) char* cmark_markdown_to_html(const char* text, size_t len, int options);
+import std;
+import dssg.md;
+import dssg.tmpl;
 
 struct Context {
   string src, dest, work;
-}
-
-string processMarkdown(string content) {
-  import core.stdc.stdlib;
-  auto ptr = cmark_markdown_to_html(content.ptr, content.length, 0 /* CMARK_OPT_DEFAULT */);
-  scope (exit) free(ptr);
-  return ptr.fromStringz.dup;
-}
-
-auto parseFrontmatter(ref Context ctx, string content) {
-  try {
-    if (auto leading = content.matchFirst(ctRegex!"---\r?\n"))
-      if (auto fm = leading.post.matchFirst(ctRegex!"\n---\r?\n"))
-        return tuple(Loader.fromString(fm.pre).load, fm.post);
-  } catch (LoaderException) {}
-  return tuple(Node(), content);
-}
-
-string processTemplate(ref Context ctx, string path) {
-  auto (fm, content) = ctx.parseFrontmatter(path.readText);
-  ("title" in fm).writeln;
-  return content;
 }
 
 void processFile(ref Context ctx, string path) {
@@ -38,10 +17,10 @@ void processFile(ref Context ctx, string path) {
   auto dest = ctx.destPath(path);
   switch (path.extension) {
     case ".md":
-      std.file.write(dest.withExtension(".html"), ctx.processTemplate(path).processMarkdown());
+      std.file.write(dest.withExtension(".html"), path.processTemplate.processMarkdown);
       break;
     case ".html":
-      std.file.write(dest, ctx.processTemplate(path));
+      std.file.write(dest, path.processTemplate);
       break;
     default:
       std.file.copy(path, dest);
@@ -86,7 +65,7 @@ int main(string[] args) {
 
   auto work = tempDir.buildPath("dssg_" ~ thisProcessID.to!string);
   work.mkdir;
-  scope (exit) work.exists && work.rmdirRecurse;
+  scope (exit) if (work.exists) work.rmdirRecurse;
 
   Context ctx = {
     src: src,
